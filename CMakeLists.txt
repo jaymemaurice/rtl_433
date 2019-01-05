@@ -1,22 +1,15 @@
-# rtl_433 is distributed in the hope that it will be useful,
-# but WITHOUT ANY WARRANTY; without even the implied warranty of
-# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-# GNU General Public License for more details.
-#
-# You should have received a copy of the GNU General Public License
-# along with GNU Radio; see the file COPYING.  If not, write to
-# the Free Software Foundation, Inc., 51 Franklin Street,
-# Boston, MA 02110-1301, USA.
-
-
 ########################################################################
 # Project setup
 ########################################################################
 cmake_minimum_required(VERSION 2.6)
 # Fix behavior of CMAKE_C_STANDARD when targeting macOS.
-if (POLICY CMP0025)
+if(POLICY CMP0025)
     cmake_policy(SET CMP0025 NEW)
-endif ()
+endif()
+# Only interpret if() arguments as variables or keywords when unquoted.
+if(POLICY CMP0054)
+    cmake_policy(SET CMP0054 NEW)
+endif()
 
 project(rtl433 C)
 
@@ -51,7 +44,7 @@ endif()
 ########################################################################
 set(CMAKE_C_EXTENSIONS OFF)
 set(CMAKE_C_STANDARD 99)
-if (("${CMAKE_C_COMPILER_ID}" STREQUAL "GNU" OR "${CMAKE_C_COMPILER_ID}" MATCHES "Clang") AND NOT WIN32)
+if(("${CMAKE_C_COMPILER_ID}" STREQUAL "GNU" OR "${CMAKE_C_COMPILER_ID}" MATCHES "Clang") AND NOT WIN32)
     ADD_DEFINITIONS(-Wall)
     ADD_DEFINITIONS(-Wextra)
     ADD_DEFINITIONS(-Wsign-compare)
@@ -70,9 +63,16 @@ if (("${CMAKE_C_COMPILER_ID}" STREQUAL "GNU" OR "${CMAKE_C_COMPILER_ID}" MATCHES
     # CMake Debug default for GCC/Clang is "-g -DNDEBUG"
     # set(CMAKE_C_FLAGS_DEBUG -g3 -O0)
 endif()
-if ("${CMAKE_C_COMPILER_ID}" MATCHES "Clang")
+if("${CMAKE_C_COMPILER_ID}" MATCHES "Clang")
     # make sure we don't accidentally copy more than an int
     ADD_DEFINITIONS(-Wlarge-by-value-copy=8)
+endif()
+
+# Shut MSVC up about strdup and strtok
+if(MSVC)
+    ADD_DEFINITIONS(-D_CRT_NONSTDC_NO_DEPRECATE)
+    ADD_DEFINITIONS(-D_CRT_SECURE_NO_WARNINGS)
+    ADD_DEFINITIONS(-DNOMINMAX)
 endif()
 
 ########################################################################
@@ -80,9 +80,11 @@ endif()
 ########################################################################
 find_package(PkgConfig)
 find_package(LibRTLSDR)
-if(LIBRTLSDR_FOUND)
-    include_directories(${LIBRTLSDR_INCLUDE_DIRS})
-    list(APPEND SDR_LIBRARIES ${LIBRTLSDR_LIBRARIES})
+find_package(LibUSB)
+if(LIBRTLSDR_FOUND AND LIBUSB_FOUND)
+    message(STATUS "RTL-SDR device input will be compiled.")
+    include_directories(${LIBRTLSDR_INCLUDE_DIRS} ${LIBUSB_INCLUDE_DIRS})
+    list(APPEND SDR_LIBRARIES ${LIBRTLSDR_LIBRARIES} ${LIBUSB_LIBRARIES})
     ADD_DEFINITIONS(-DRTLSDR)
 else()
     message(STATUS "RTL-SDR development files not found, RTL-SDR device input won't be possible.")
@@ -90,11 +92,12 @@ endif()
 
 find_package(SoapySDR "0.6" NO_MODULE)
 if(SoapySDR_FOUND)
+    message(STATUS "SoapySDR device input will be compiled.")
     include_directories(${SoapySDR_INCLUDE_DIRS})
     list(APPEND SDR_LIBRARIES ${SoapySDR_LIBRARIES})
     ADD_DEFINITIONS(-DSOAPYSDR)
 else()
-    message(STATUS "Soapy SDR development files not found, Soapy SDR device input won't be possible.")
+    message(STATUS "SoapySDR development files not found, SoapySDR device input won't be possible.")
 endif()
 
 # cmake -DCMAKE_BUILD_TYPE=Profile ..
@@ -112,7 +115,7 @@ if("${CMAKE_BUILD_TYPE}" STREQUAL "Profile")
     ADD_DEFINITIONS(-fno-builtin-free)
 endif()
 
-if(MINGW)
+if(MINGW OR MSVC)
 list(APPEND NET_LIBRARIES ws2_32 mswsock)
 endif()
 
@@ -120,6 +123,7 @@ endif()
 # Setup the include and linker paths
 ########################################################################
 include_directories(
+    BEFORE
     ${CMAKE_SOURCE_DIR}/include
 )
 
@@ -163,11 +167,19 @@ if(BUILD_DOCUMENTATION)
 endif()
 
 ########################################################################
+# Build tests
+########################################################################
+include(CTest) # note: this adds a BUILD_TESTING which defaults to ON
+
+########################################################################
 # Add subdirectories
 ########################################################################
 add_subdirectory(include)
 add_subdirectory(src)
-add_subdirectory(tests)
+if(BUILD_TESTING)
+    add_subdirectory(tests)
+endif(BUILD_TESTING)
+add_subdirectory(conf)
 
 # use space-separation format for the pc file
 STRING(REPLACE ";" " " RTL433_PC_CFLAGS "${RTL433_PC_CFLAGS}")

@@ -6,6 +6,8 @@ rtl_433 (despite the name) is a generic data receiver, mainly for the 433.92 MHz
 It works with [RTL-SDR](https://github.com/osmocom/rtl-sdr/) and/or [SoapySDR](https://github.com/pothosware/SoapySDR/).
 Activly tested and supported are Realtek RTL2832 based DVB dongles (using RTL-SDR) and LimeSDR ([LimeSDR USB](https://www.crowdsupply.com/lime-micro/limesdr) and [LimeSDR mini](https://www.crowdsupply.com/lime-micro/limesdr-mini) engineering samples kindly provided by [MyriadRf](https://myriadrf.org/)), PlutoSDR, HackRF One (using SoapySDR drivers), as well as SoapyRemote.
 
+![rtl_433 screenshot](screenshot.png)
+
 Building/installation:
 ----------------------
 
@@ -22,16 +24,21 @@ Running:
     rtl_433 -h
 
 ```
-Usage:	= Tuner options =
-	[-d <RTL-SDR USB device index>] (default: 0)
-	[-d :<RTL-SDR USB device serial (can be set with rtl_eeprom -s)>]
-	[-g <gain>] (default: 0 for auto)
+Usage:	= General options =
+	[-V] Output the version string and exit
+	[-v] Increase verbosity (can be used multiple times).
+		 -v : verbose, -vv : verbose decoders, -vvv : debug decoders, -vvvv : trace decoding).
+	[-c <path>] Read config options from a file
+	= Tuner options =
+	[-d <RTL-SDR USB device index> | :<RTL-SDR USB device serial> | <SoapySDR device query> | rtl_tcp]
+	[-g <gain>] (default: auto)
 	[-f <frequency>] [-f...] Receive frequency(s) (default: 433920000 Hz)
 	[-H <seconds>] Hop interval for polling of multiple frequencies (default: 600 seconds)
 	[-p <ppm_error] Correct rtl-sdr tuner frequency offset error (default: 0)
 	[-s <sample rate>] Set sample rate (default: 250000 Hz)
 	= Demodulator options =
 	[-R <device>] Enable only the specified device decoding protocol (can be used multiple times)
+		 Specify a negative number to disable a device decoding protocol (can be used multiple times)
 	[-G] Enable all device protocols, included those disabled by default
 	[-X <spec> | help] Add a general purpose decoder (-R 0 to disable all other decoders)
 	[-l <level>] Change detection level used to determine pulses [0-16384] (0 = auto) (default: 0)
@@ -39,35 +46,33 @@ Usage:	= Tuner options =
 	[-x <value>] Override long value in data decoder
 	[-n <value>] Specify number of samples to take (each sample is 2 bytes: 1 each of I & Q)
 	= Analyze/Debug options =
-	[-a] Analyze mode. Print a textual description of the signal. Disables decoding
-	[-A] Pulse Analyzer. Enable pulse analysis and decode attempt
-	[-I] Include only: 0 = all (default), 1 = unknown devices, 2 = known devices
-	[-D] Print debug info on event (repeat for more info)
-	[-q] Quiet mode, suppress non-data messages
+	[-a] Analyze mode. Print a textual description of the signal.
+	[-A] Pulse Analyzer. Enable pulse analysis and decode attempt.
+		 Disable all decoders with -R 0 if you want analyzer output only.
 	[-y <code>] Verify decoding of demodulated test data (e.g. "{25}fb2dd58") with enabled devices
 	= File I/O options =
-	[-t] Test signal auto save. Use it together with analyze mode (-a -t). Creates one file per signal
-		 Note: Saves raw I/Q samples (uint8 pcm, 2 channel). Preferred mode for generating test files
+	[-S none|all|unknown|known] Signal auto save. Creates one file per signal.
+		 Note: Saves raw I/Q samples (uint8 pcm, 2 channel). Preferred mode for generating test files.
 	[-r <filename>] Read data from input file instead of a receiver
 	[-w <filename>] Save data stream to output file (a '-' dumps samples to stdout)
 	[-W <filename>] Save data stream to output file, overwrite existing file
-	[-F] kv|json|csv|syslog Produce decoded output in given format. Not yet supported by all drivers.
+	= Data output options =
+	[-F kv|json|csv|syslog|null] Produce decoded output in given format.
 		 Append output to file with :<filename> (e.g. -F csv:log.csv), defaults to stdout.
 		 Specify host/port for syslog with e.g. -F syslog:127.0.0.1:1514
-	[-C] native|si|customary Convert units in decoded output.
-	[-T] Specify number of seconds to run
-	[-U] Print timestamps in UTC (this may also be accomplished by invocation with TZ environment variable set).
+	[-M time|reltime|notime|hires|utc|protocol|level|bits] Add various meta data to every output line.
+	[-K FILE|PATH|<tag>] Add an expanded token or fixed tag to every output line.
+	[-C native|si|customary] Convert units in decoded output.
+	[-T <seconds>] Specify number of seconds to run
 	[-E] Stop after outputting successful event(s)
-	[-V] Output the version string and exit
 	[-h] Output this usage help and exit
-		 Use -d, -R, -X, -F, -r, or -w without argument for more help
+		 Use -d, -g, -R, -X, -F, -M, -r, or -w without argument for more help
 
 Supported device protocols:
     [01]  Silvercrest Remote Control
     [02]  Rubicson Temperature Sensor
     [03]  Prologue Temperature Sensor
     [04]  Waveman Switch Transmitter
-    [05]* Steffen Switch Transmitter
     [06]* ELV EM 1000
     [07]* ELV WS 2000
     [08]  LaCrosse TX Temperature / Humidity Sensor
@@ -88,8 +93,6 @@ Supported device protocols:
     [24]* Brennenstuhl RCS 2044
     [25]  GT-WT-02 Sensor
     [26]  Danfoss CFR Thermostat
-    [27]* Energy Count 3000 (868.3 MHz)
-    [28]* Valeo Car Key
     [29]  Chuango Security Technology
     [30]  Generic Remote SC226x EV1527
     [31]  TFA-Twin-Plus-30.3049 and Ea2 BL999
@@ -100,7 +103,7 @@ Supported device protocols:
     [36]  Efergy e2 classic
     [37]* Inovalley kw9015b, TFA Dostmann 30.3161 (Rain and temperature sensor)
     [38]  Generic temperature sensor 1
-    [39]  WG-PB12V1
+    [39]  WG-PB12V1 Temperature Sensor
     [40]  Acurite 592TXR Temp/Humidity, 5n1 Weather Station, 6045 Lightning
     [41]  Acurite 986 Refrigerator / Freezer Thermometer
     [42]  HIDEKI TS04 Temperature, Humidity, Wind and Rain Sensor
@@ -119,7 +122,7 @@ Supported device protocols:
     [55]  Acurite 606TX Temperature Sensor
     [56]  TFA pool temperature sensor
     [57]  Kedsum Temperature & Humidity Sensor
-    [58]  blyss DC5-UK-WH (433.92 MHz)
+    [58]  Blyss DC5-UK-WH
     [59]  Steelmate TPMS
     [60]  Schrader TPMS
     [61]* LightwaveRF
@@ -127,7 +130,7 @@ Supported device protocols:
     [63]  Efergy Optical
     [64]  Honda Car Key
     [67]  Radiohead ASK
-    [68]  Kerui PIR Sensor
+    [68]  Kerui PIR / Contact Sensor
     [69]  Fine Offset WH1050 Weather Station
     [70]  Honeywell Door/Window Sensor
     [71]  Maverick ET-732/733 BBQ Sensor
@@ -137,7 +140,7 @@ Supported device protocols:
     [75]  LaCrosse TX35DTH-IT, TFA Dostmann 30.3155 Temperature/Humidity sensor
     [76]  LaCrosse TX29IT Temperature sensor
     [77]  Vaillant calorMatic 340f Central Heating Control
-    [78]  Fine Offset Electronics, WH25, WH24, HP1000 Temperature/Humidity/Pressure Sensor
+    [78]  Fine Offset Electronics, WH25, WH24, WH65B, HP1000 Temperature/Humidity/Pressure Sensor
     [79]  Fine Offset Electronics, WH0530 Temperature/Rain Sensor
     [80]  IBIS beacon
     [81]  Oil Ultrasonic STANDARD FSK
@@ -150,7 +153,7 @@ Supported device protocols:
     [88]  Toyota TPMS
     [89]  Ford TPMS
     [90]  Renault TPMS
-    [91]* inFactory
+    [91]  inFactory
     [92]  FT-004-B Temperature Sensor
     [93]  Ford Car Key
     [94]  Philips outdoor temperature sensor
@@ -161,7 +164,7 @@ Supported device protocols:
     [99]  X10 Security
     [100]  Interlogix GE UTC Security Devices
     [101]* Dish remote 6.3
-    [102]* SimpliSafe Home Security System (May require disabling automatic gain for KeyPad decodes)
+    [102]  SimpliSafe Home Security System (May require disabling automatic gain for KeyPad decodes)
     [103]  Sensible Living Mini-Plant Moisture Sensor
     [104]* Wireless M-Bus, Mode C&T, 100kbps (-f 868950000 -s 1200000)
     [105]* Wireless M-Bus, Mode S, 32.768kbps (-f 868300000 -s 1000000)
@@ -170,37 +173,55 @@ Supported device protocols:
     [108]  WS Temperature Sensor
     [109]  WT0124 Pool Thermometer
     [110]  PMV-107J (Toyota) TPMS
+    [111]  Emos TTX201 Temperature Sensor
+    [112]  Ambient Weather TX-8300 Temperature/Humidity Sensor
+    [113]  Ambient Weather WH31E Thermo-Hygrometer Sensor
+    [114]  Maverick et73
+    [115]  Honeywell Wireless Doorbell
+    [116]  Honeywell Wireless Doorbell (FSK)
+    [117]* ESA1000 / ESA2000 Energy Monitor
+    [118]* Biltema rain gauge
+    [119]  Bresser Weather Center 5-in-1
+    [120]* Digitech XC-0324 temperature sensor
 
 * Disabled by default, use -R n or -G
 
 ```
 
 
-Examples:
+Some examples:
 
 | Command | Description
 |---------|------------
-| `rtl_433 -G` | Default receive mode, attempt to decode all known devices
-| `rtl_433 -p NN -R 1 -R 9 -R 36 -R 40` | Typical usage: Enable device decoders for desired devices. Correct rtl-sdr tuning error (ppm offset).
-| `rtl_433 -a` | Will run in analyze mode and you will get a text description of the received signal.
-| `rtl_433 -A` | Enable pulse analyzer. Summarizes the timings of pulses, gaps, and periods. Can be used in either the normal decode mode, or analyze mode.
-| `rtl_433 -a -t` | Will run in analyze mode and save a test file per detected signal (`g###_###M_###k.cu8`). Format is uint8, 2 channels.
-| `rtl_433 -r file_name` | Play back a saved data file.
-| `rtl_433 file_name` | Will save everything received from the rtl-sdr during the session into a single file. The saves file may become quite large depending on how long rtl_433 is left running. Note: saving signals into individual files with `rtl_433 -a -t` is preferred.
-| `rtl_433 -F json -U \| mosquitto_pub -t home/rtl_433 -l` | Will pipe the output to network as JSON formatted MQTT messages. A test MQTT client can be found in `tests/mqtt_rtl_433_test.py`.
-| `rtl_433 -f 433535000 -f 434019000 -H 15` | Will poll two frequencies with 15 seconds interval.
-
-This software is mostly usable for developers right now.
+| `rtl_433` | Default receive mode, use the first device found, listen at 433.92 MHz at 250k sample rate.
+| `rtl_433 -C si` | Default receive mode, also convert units to metric system.
+| `rtl_433 -f 868M -s 1024k` | Listen at 868 MHz and 1024k sample rate.
+| `rtl_433 -M hires -M level` | Report microsecond accurate timestamps and add reception levels (depending on gain).
+| `rtl_433 -R 1 -R 8 -R 43` | Enable only specific decoders for desired devices.
+| `rtl_433 -A` | Enable pulse analyzer. Summarizes the timings of pulses, gaps, and periods. Can be used with `-R 0` to disable decoders.
+| `rtl_433 -S all -T 120` | Save all detected signals (`g###_###M_###k.cu8`). Run for 2 minutes.
+| `rtl_433 -K FILE -r file_name` | Read a saved data file instead of receiving live data. Tag output with filenames.
+| `rtl_433 -F json -M utc \| mosquitto_pub -t home/rtl_433 -l` | Will pipe the output to network as JSON formatted MQTT messages. A test MQTT client can be found in `tests/mqtt_rtl_433_test.py`.
+| `rtl_433 -f 433.53M -f 434.02M -H 15` | Will poll two frequencies with 15 seconds hop interval.
 
 
 Supporting Additional Devices and Test Data
 -------------------------------------------
 
-Note: Not all device protocol decoders are enabled by default. When testing to see if your device
+Some device protocol decoders are disabled by default. When testing to see if your device
 is decoded by rtl_433, use `-G` to enable all device protocols.
+This will likely produce false positives, use with caution.
 
-The first step in decoding new devices is to record the signals using `-a -t`. The signals will be
-stored individually in files named gNNN_FFFM_RRRk.cu8 that can be played back with `rtl_433 -r gNNN_FFFM_RRRk.cu8`.
+The first step in decoding new devices is to record the signals using `-S all`.
+The signals will be stored individually in files named g**NNN**\_**FFF**M\_**RRR**k.cu8 :
+
+| Parameter | Description
+|---------|------------
+| **NNN** | signal grabbed number
+| **FFF** | frequency
+| **RRR** | sample rate   
+
+This file can be played back with `rtl_433 -r gNNN_FFFM_RRRk.cu8`.
 
 These files are vital for understanding the signal format as well as the message data.  Use both analyzers
 `-a` and `-A` to look at the recorded signal and determine the pulse characteristics, e.g. `rtl_433 -r gNNN_FFFM_RRRk.cu8 -a -A`.
