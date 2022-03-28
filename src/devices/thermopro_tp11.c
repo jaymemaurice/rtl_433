@@ -1,94 +1,80 @@
-/* Thermopro TP-11 Thermometer.
- *
- * Copyright (C) 2017 Google Inc.
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
- *
- */
+/** @file
+    Thermopro TP-11 Thermometer.
+
+    Copyright (C) 2017 Google Inc.
+
+    This program is free software; you can redistribute it and/or modify
+    it under the terms of the GNU General Public License as published by
+    the Free Software Foundation; either version 2 of the License, or
+    (at your option) any later version.
+*/
+/**
+Thermopro TP-11 Thermometer.
+
+normal sequence of bit rows:
+
+    [00] {33} db 41 57 c2 80 : 11011011 01000001 01010111 11000010 1
+    [01] {33} db 41 57 c2 80 : 11011011 01000001 01010111 11000010 1
+    [02] {33} db 41 57 c2 80 : 11011011 01000001 01010111 11000010 1
+    [03] {32} db 41 57 c2 : 11011011 01000001 01010111 11000010
+
+*/
 #include "decoder.h"
 
-/* normal sequence of bit rows:
-[00] {33} db 41 57 c2 80 : 11011011 01000001 01010111 11000010 1
-[01] {33} db 41 57 c2 80 : 11011011 01000001 01010111 11000010 1
-[02] {33} db 41 57 c2 80 : 11011011 01000001 01010111 11000010 1
-[03] {32} db 41 57 c2 : 11011011 01000001 01010111 11000010 
-
-The code below checks that at least three rows are the same and
-that the validation code is correct for the known device ids.
-*/
-
-static int valid(unsigned data, unsigned check) {
-    // This table is computed for device ids 0xb34 and 0xdb4. Since the code
-    // appear to be linear, it is most likely correct also for device ids
-    // 0 and 0xb34^0xdb4 == 0x680. It needs to be updated for others, the
-    // values starting at table[12] are most likely wrong for other devices.
-    static int table[] = {
-        0x04, 0x08, 0x10, 0x20, 0x40, 0x80, 0x51, 0xa2, 
-        0x15, 0x2a, 0x54, 0xa8, 0x00, 0x00, 0xed, 0x00,
-        0x00, 0x00, 0x00, 0x37, 0x00, 0x00, 0x00, 0x00};
-    for(int i=0;i<24;i++) {
-        if (data & (1 << i)) check ^= table[i];
-    }
-    return check == 0;
-}
-
-static int thermopro_tp11_sensor_callback(r_device *decoder, bitbuffer_t *bitbuffer) {
-    int i, j, iTemp, good = -1;
-    float fTemp;
-    bitrow_t *bb = bitbuffer->bb;
-    unsigned int device, value;
-    data_t *data;
-
+static int thermopro_tp11_sensor_callback(r_device *decoder, bitbuffer_t *bitbuffer)
+{
     // Compare first four bytes of rows that have 32 or 33 bits.
-    for (i = 0; good < 0 && i + 2 < bitbuffer->num_rows; i++) {
-        int equal_rows = 0;
-        if ((bitbuffer->bits_per_row[i] & ~1) != 32) continue;
+    int row = bitbuffer_find_repeated_row(bitbuffer, 2, 32);
+    if (row < 0)
+        return DECODE_ABORT_EARLY;
+    uint8_t *b = bitbuffer->bb[row];
 
-        for (j = i+1; good < 0 && j < bitbuffer->num_rows; j++) {
-            if ((bitbuffer->bits_per_row[j] & ~1) == 32
-                && bb[i][0] == bb[j][0]
-                && bb[i][1] == bb[j][1]
-                && bb[i][2] == bb[j][2]
-                && bb[i][3] == bb[j][3]
-                && ++equal_rows >= 2) good = i;
-        }
+    if (bitbuffer->bits_per_row[row] > 33)
+        return DECODE_ABORT_LENGTH;
+
+    uint8_t ic = lfsr_digest8_reflect(b, 3, 0x51, 0x04);
+    if (ic != b[3]) {
+        return DECODE_FAIL_MIC;
     }
-    if (good < 0) return 0;
 
-    // bb[good] is equal to at least two other rows, decode.
-    value = (bb[good][0] << 16) + (bb[good][1] << 8) + bb[good][2];
-    device = value >> 12;
-    // Validate code for known devices.
-    if ((device == 0xb34 || device == 0xdb4 ) && !valid(value, bb[good][3]))
-        return 0;
-    iTemp = value & 0xfff;
-    fTemp = (iTemp - 200) / 10.;
+    // No need to decode/extract values for simple test
+    if ( (!b[0] && !b[1] && !b[2] && !b[3])
+       || (b[0] == 0xff && b[1] == 0xff && b[2] == 0xff && b[3] == 0xff)) {
+        decoder_log(decoder, 2, __func__, "DECODE_FAIL_SANITY data all 0x00 or 0xFF");
+        return DECODE_FAIL_SANITY;
+    }
 
-    data = data_make(
-                     "model",         "",            DATA_STRING, "Thermopro TP11 Thermometer",
-                     "id",            "Id",          DATA_FORMAT, "\t %d",   DATA_INT,    device,
-                     "temperature_C", "Temperature", DATA_FORMAT, "%.01f C", DATA_DOUBLE, fTemp,
-                     NULL);
+    int device   = (b[0] << 4) | (b[1] >> 4);
+    int temp_raw = ((b[1] & 0x0f) << 8) | b[2];
+    float temp_c = (temp_raw - 200) * 0.1f;
+
+    /* clang-format off */
+    data_t *data = data_make(
+            "model",         "",            DATA_STRING, "Thermopro-TP11",
+            "id",            "Id",          DATA_INT,    device,
+            "temperature_C", "Temperature", DATA_FORMAT, "%.01f C", DATA_DOUBLE, temp_c,
+            "mic",           "Integrity",   DATA_STRING, "CRC",
+            NULL);
+    /* clang-format on */
     decoder_output_data(decoder, data);
     return 1;
 }
 
 static char *output_fields[] = {
-    "model",
-    "id",
-    "temperature_C",
-    NULL
+        "model",
+        "id",
+        "temperature_C",
+        "mic",
+        NULL,
 };
 
 r_device thermopro_tp11 = {
-    .name          = "Thermopro TP11 Thermometer",
-    .modulation    = OOK_PULSE_PPM_RAW,
-    .short_limit   = 956,
-    .long_limit    = 1912,
-    .reset_limit   = 3880,
-    .decode_fn     = &thermopro_tp11_sensor_callback,
-    .disabled      = 0,
-    .fields        = output_fields,
+        .name        = "Thermopro TP11 Thermometer",
+        .modulation  = OOK_PULSE_PPM,
+        .short_width = 500,
+        .long_width  = 1500,
+        .gap_limit   = 2000,
+        .reset_limit = 4000,
+        .decode_fn   = &thermopro_tp11_sensor_callback,
+        .fields      = output_fields,
 };

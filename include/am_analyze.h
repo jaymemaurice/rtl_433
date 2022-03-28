@@ -1,30 +1,29 @@
-/**
- * AM signal analyzer
- *
- * Copyright (C) 2018 Christian Zuckschwerdt
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
- */
+/** @file
+    AM signal analyzer.
+
+    Copyright (C) 2018 Christian Zuckschwerdt
+
+    This program is free software; you can redistribute it and/or modify
+    it under the terms of the GNU General Public License as published by
+    the Free Software Foundation; either version 2 of the License, or
+    (at your option) any later version.
+*/
+
+#ifndef INCLUDE_AM_ANALYZE_H_
+#define INCLUDE_AM_ANALYZE_H_
 
 #include <stdint.h>
+#include "samp_grab.h"
 
-typedef struct {
-    int32_t *level_limit;
+#define PULSE_DATA_SIZE 4000 /* maximum number of pulses */
+
+typedef struct am_analyze {
+    int level_limit;
     int override_short;
     int override_long;
     uint32_t *frequency;
     uint32_t *samp_rate;
     int *sample_size;
-
-    /* Signal grabber variables */
-    int signal_grabber;
-    char *sg_buf;
-    unsigned sg_size;
-    unsigned sg_index;
-    unsigned sg_len;
 
     /* state */
     unsigned counter;
@@ -36,23 +35,19 @@ typedef struct {
     unsigned pulse_end;
     unsigned pulse_avg;
     unsigned signal_start;
-    unsigned signal_end;
     unsigned signal_pulse_counter;
     unsigned signal_pulse_data[4000][3];
 } am_analyze_t;
 
+/// Create an AM-Analyzer. Might fail and return NULL.
 am_analyze_t *am_analyze_create(void);
 
 void am_analyze_free(am_analyze_t *a);
 
-void am_analyze_enable_grabber(am_analyze_t *a, unsigned size);
+void am_analyze_skip(am_analyze_t *a, unsigned n_samples);
 
-void am_analyze_add(am_analyze_t *a, unsigned char *iq_buf, uint32_t len);
-
-void am_analyze_reset(am_analyze_t *a);
-
-void am_analyze(am_analyze_t *a, int16_t *buf, uint32_t len, int debug_output);
+void am_analyze(am_analyze_t *a, int16_t *am_buf, unsigned n_samples, int debug_output, samp_grab_t *g);
 
 void am_analyze_classify(am_analyze_t *aa);
 
-void signal_grabber_write(am_analyze_t *a, unsigned signal_start, unsigned signal_end, unsigned i);
+#endif /* INCLUDE_AM_ANALYZE_H_ */

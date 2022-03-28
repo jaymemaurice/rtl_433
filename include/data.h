@@ -1,71 +1,53 @@
-/*
- * A general structure for extracting hierarchical data from the devices;
- * typically key-value pairs, but allows for more rich data as well.
- *
- * Copyright (C) 2015 by Erkki Seppälä <flux@modeemi.fi>
- *
- * This program is free software: you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation, either version 2 of the License, or
- * (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program.  If not, see <http://www.gnu.org/licenses/>.
- */
+/** @file
+    A general structure for extracting hierarchical data from the devices;
+    typically key-value pairs, but allows for more rich data as well.
+
+    Copyright (C) 2015 by Erkki Seppälä <flux@modeemi.fi>
+
+    This program is free software; you can redistribute it and/or modify
+    it under the terms of the GNU General Public License as published by
+    the Free Software Foundation; either version 2 of the License, or
+    (at your option) any later version.
+
+    This program is distributed in the hope that it will be useful,
+    but WITHOUT ANY WARRANTY; without even the implied warranty of
+    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+    GNU General Public License for more details.
+
+    You should have received a copy of the GNU General Public License
+    along with this program.  If not, see <http://www.gnu.org/licenses/>.
+*/
 
 #ifndef INCLUDE_DATA_H_
 #define INCLUDE_DATA_H_
 
-#include <stdio.h>
-
-#if defined(_MSC_VER) && !defined(__clang__)
-    /*
-     * MSVC have no support for "Variable Length Arrays"
-     * But compiling using 'clang-cl', '_MSC_VER' is a built-in. Hence use VLA
-     * for Clang in that case.
-     * With no VLAs, we need 'alloca()' which is in '<malloc.h>' etc.
-     */
-    #include <malloc.h>
-    #define RTL_433_NO_VLAs
-
-    /* gcc uses the syntax:
-     *   foo (char *restict ptr);
-     *
-     * But MSVC needs the syntax:
-     *   foo (char *ptr __declspec(restrict));
-     *
-     * Hence just make 'restrict' a NOOP.
-     */
-    #ifndef restrict
-    #define restrict
+#if defined _WIN32 || defined __CYGWIN__
+    #ifdef data_EXPORTS
+        #define R_API __stdcall __declspec(dllexport) // Note: actually gcc seems to also supports this syntax.
+    #else
+        #define R_API __stdcall __declspec(dllimport) // Note: actually gcc seems to also supports this syntax.
     #endif
+    #define R_API_CALLCONV __stdcall
+#else
+    #if __GNUC__ >= 4
+        #define R_API __attribute__((visibility ("default")))
+    #else
+        #define R_API
+    #endif
+    #define R_API_CALLCONV
 #endif
 
-/*
- * The only place '<strings.h>' is currenly needed is in 'src/devices/flex.c'.
- * But it's cleaner to keep such trivia here.
- */
-#ifdef _MSC_VER
-    #include <string.h>
-    #define strcasecmp(s1,s2)     _stricmp(s1,s2)
-    #define strncasecmp(s1,s2,n)  _strnicmp(s1,s2,n)
-#else
-    #include <strings.h>
-#endif
+#include <stddef.h>
 
 typedef enum {
-    DATA_DATA,        /* pointer to data is stored */
-    DATA_INT,        /* pointer to integer is stored */
-    DATA_DOUBLE,        /* pointer to a double is stored */
-    DATA_STRING,        /* pointer to a string is stored */
-    DATA_ARRAY,        /* pointer to an array of values is stored */
-    DATA_COUNT,        /* invalid */
-    DATA_FORMAT        /* indicates the following value is formatted */
+    DATA_DATA,   /**< pointer to data is stored */
+    DATA_INT,    /**< pointer to integer is stored */
+    DATA_DOUBLE, /**< pointer to a double is stored */
+    DATA_STRING, /**< pointer to a string is stored */
+    DATA_ARRAY,  /**< pointer to an array of values is stored */
+    DATA_COUNT,  /**< invalid */
+    DATA_FORMAT, /**< indicates the following value is formatted */
+    DATA_COND,   /**< add data only if condition is true, skip otherwise */
 } data_type_t;
 
 typedef struct data_array {
@@ -74,14 +56,20 @@ typedef struct data_array {
     void        *values;
 } data_array_t;
 
+typedef union data_value {
+    int         v_int;
+    double      v_dbl;
+    void        *v_ptr;
+} data_value_t;
+
 typedef struct data {
     char        *key;
-    char        *pretty_key; /* the name used for displaying data to user in with a nicer name */
+    char        *pretty_key; /**< the name used for displaying data to user in with a nicer name */
     data_type_t type;
-    char        *format; /* if not null, contains special formatting string */
-    void        *value;
-    unsigned    retain; /* incremented on data_retain, data_free only frees if this is zero */
-    struct data *next; /* chaining to the next element in the linked list; NULL indicates end-of-list */
+    char        *format; /**< if not null, contains special formatting string */
+    data_value_t value;
+    unsigned    retain; /**< incremented on data_retain, data_free only frees if this is zero */
+    struct data *next; /**< chaining to the next element in the linked list; NULL indicates end-of-list */
 } data_t;
 
 /** Constructs a structured data object.
@@ -110,69 +98,78 @@ typedef struct data {
     @param key Name of the first value to put in.
     @param pretty_key Pretty name for the key. Use "" if to omit pretty label for this field completely,
                       or NULL if to use key name for it.
-    @param type Type of the first value to put in.
-    @param ... The value of the first value to put in, followed by the rest of the
+    @param ... Type and then value of the item to put in, followed by the rest of the
                key-type-values. The list is terminated with a NULL.
 
     @return A constructed data_t* object or NULL if there was a memory allocation error.
 */
-data_t *data_make(const char *key, const char *pretty_key, ...);
+R_API data_t *data_make(const char *key, const char *pretty_key, ...);
 
 /** Adds to a structured data object, by appending data.
 
     @see data_make()
 */
-data_t *data_append(data_t *first, const char *key, const char *pretty_key, ...);
+R_API data_t *data_append(data_t *first, const char *key, const char *pretty_key, ...);
 
 /** Adds to a structured data object, by prepending data.
 
     @see data_make()
 */
-data_t *data_prepend(data_t *first, const char *key, const char *pretty_key, ...);
+R_API data_t *data_prepend(data_t *first, const char *key, const char *pretty_key, ...);
 
 /** Constructs an array from given data of the given uniform type.
 
+    @param num_values The number of values to be copied.
+    @param type The type of values to be copied.
     @param ptr The contents pointed by the argument are copied in.
 
     @return The constructed data array object, typically placed inside a data_t or NULL
             if there was a memory allocation error.
 */
-data_array_t *data_array(int num_values, data_type_t type, void *ptr);
+R_API data_array_t *data_array(int num_values, data_type_t type, void *ptr);
 
-/** Releases a data array */
-void data_array_free(data_array_t *array);
+/** Releases a data array. */
+R_API void data_array_free(data_array_t *array);
 
 /** Retain a structure object, returns the structure object passed in. */
-data_t *data_retain(data_t *data);
+R_API data_t *data_retain(data_t *data);
 
 /** Releases a structure object if retain is zero, decrement retain otherwise. */
-void data_free(data_t *data);
+R_API void data_free(data_t *data);
 
 struct data_output;
 
-/** Construct data output for CSV printer
+typedef struct data_output {
+    void (R_API_CALLCONV *print_data)(struct data_output *output, data_t *data, char const *format);
+    void (R_API_CALLCONV *print_array)(struct data_output *output, data_array_t *data, char const *format);
+    void (R_API_CALLCONV *print_string)(struct data_output *output, const char *data, char const *format);
+    void (R_API_CALLCONV *print_double)(struct data_output *output, double data, char const *format);
+    void (R_API_CALLCONV *print_int)(struct data_output *output, int data, char const *format);
+    void (R_API_CALLCONV *output_start)(struct data_output *output, char const *const *fields, int num_fields);
+    void (R_API_CALLCONV *output_flush)(struct data_output *output);
+    void (R_API_CALLCONV *output_free)(struct data_output *output);
+} data_output_t;
 
-    @param file the output stream
+/** Setup known field keys and start output, used by CSV only.
+
+    @param output the data_output handle from data_output_x_create
     @param fields the list of fields to accept and expect. Array is copied, but the actual
                   strings not. The list may contain duplicates and they are eliminated.
     @param num_fields number of fields
-
-    @return The auxiliary data to pass along with data_csv_printer to data_print.
-            You must release this object with data_csv_free once you're done with it.
 */
+R_API void data_output_start(struct data_output *output, char const *const *fields, int num_fields);
 
-struct data_output *data_output_csv_create(FILE *file);
-void data_output_csv_init(struct data_output *output, const char **fields, int num_fields);
+/** Prints a structured data object, flushes the output if applicable. */
+R_API void data_output_print(struct data_output *output, data_t *data);
 
-struct data_output *data_output_json_create(FILE *file);
+R_API void data_output_free(struct data_output *output);
 
-struct data_output *data_output_kv_create(FILE *file);
+/* data output helpers */
 
-struct data_output *data_output_syslog_create(const char *host, const char *port);
+R_API void print_value(data_output_t *output, data_type_t type, data_value_t value, char const *format);
 
-/** Prints a structured data object */
-void data_output_print(struct data_output *output, data_t *data);
+R_API void print_array_value(data_output_t *output, data_array_t *array, char const *format, int idx);
 
-void data_output_free(struct data_output *output);
+R_API size_t data_print_jsons(data_t *data, char *dst, size_t len);
 
 #endif // INCLUDE_DATA_H_

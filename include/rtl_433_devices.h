@@ -1,17 +1,23 @@
+/** @file
+    Declaration of all available decoders.
+*/
+
 #ifndef INCLUDE_RTL_433_DEVICES_H_
 #define INCLUDE_RTL_433_DEVICES_H_
+
+#include "r_device.h"
 
 #define DEVICES \
     DECL(silvercrest) \
     DECL(rubicson) \
     DECL(prologue) \
     DECL(waveman) \
-    DECL(steffen) \
+    DECL(new_template) \
     DECL(elv_em1000) \
     DECL(elv_ws2000) \
     DECL(lacrossetx) \
-    DECL(template) \
-    DECL(acurite_rain_gauge) \
+    DECL(new_template) \
+    DECL(acurite_rain_896) \
     DECL(acurite_th) \
     DECL(oregon_scientific) \
     DECL(mebus433) \
@@ -24,12 +30,12 @@
     DECL(ambient_weather) \
     DECL(calibeur_RF104) \
     DECL(X10_RF) \
-    DECL(DSC) \
+    DECL(dsc_security) \
     DECL(brennenstuhl_rcs_2044) \
     DECL(gt_wt_02) \
     DECL(danfoss_CFR) \
-    DECL(ec3k) \
-    DECL(valeo) \
+    DECL(new_template) \
+    DECL(new_template) \
     DECL(chuango) \
     DECL(generic_remote) \
     DECL(tfa_twin_plus_303049) \
@@ -66,15 +72,15 @@
     DECL(elro_db286a) \
     DECL(efergy_optical) \
     DECL(hondaremote) \
-    DECL(template) \
-    DECL(template) \
+    DECL(new_template) \
+    DECL(new_template) \
     DECL(radiohead_ask) \
     DECL(kerui) \
     DECL(fineoffset_wh1050) \
     DECL(honeywell) \
     DECL(maverick_et73x) \
     DECL(rftech) \
-    DECL(lacrosse_TX141TH_Bv2) \
+    DECL(lacrosse_tx141x) \
     DECL(acurite_00275rm) \
     DECL(lacrosse_tx35) \
     DECL(lacrosse_tx29) \
@@ -95,7 +101,7 @@
     DECL(infactory) \
     DECL(ft004b) \
     DECL(fordremote) \
-    DECL(philips) \
+    DECL(philips_aj3650) \
     DECL(schrader_EG53MA4) \
     DECL(nexa) \
     DECL(thermopro_tp12) \
@@ -114,45 +120,112 @@
     DECL(tpms_pmv107j) \
     DECL(ttx201) \
     DECL(ambientweather_tx8300) \
-    DECL(ambientweather_wh31e)
+    DECL(ambientweather_wh31e) \
+    DECL(maverick_et73) \
+    DECL(honeywell_wdb) \
+    DECL(honeywell_wdb_fsk) \
+    DECL(esa_energy) \
+    DECL(bt_rain) \
+    DECL(bresser_5in1) \
+    DECL(digitech_xc0324) \
+    DECL(opus_xt300) \
+    DECL(fs20) \
+    DECL(tpms_jansite) \
+    DECL(lacrosse_ws7000) \
+    DECL(ts_ft002) \
+    DECL(companion_wtr001) \
+    DECL(ecowitt) \
+    DECL(directv) \
+    DECL(eurochron) \
+    DECL(ikea_sparsnas) \
+    DECL(hcs200) \
+    DECL(tfa_303196) \
+    DECL(rubicson_48659) \
+    DECL(holman_ws5029pcm) \
+    DECL(philips_aj7010) \
+    DECL(esic_emt7110) \
+    DECL(gt_tmbbq05) \
+    DECL(gt_wt_03) \
+    DECL(norgo) \
+    DECL(tpms_elantra2012) \
+    DECL(auriol_hg02832) \
+    DECL(fineoffset_WH51) \
+    DECL(holman_ws5029pwm) \
+    DECL(archos_tbh) \
+    DECL(ws2032) \
+    DECL(auriol_afw2a1) \
+    DECL(tfa_drop_303233) \
+    DECL(dsc_security_ws4945) \
+    DECL(ert_scm) \
+    DECL(klimalogg) \
+    DECL(visonic_powercode) \
+    DECL(eurochron_efth800) \
+    DECL(cotech_36_7959) \
+    DECL(scmplus) \
+    DECL(fineoffset_wh1080_fsk) \
+    DECL(tpms_abarth124) \
+    DECL(missil_ml0757) \
+    DECL(sharp_spc775) \
+    DECL(insteon) \
+    DECL(ert_idm) \
+    DECL(ert_netidm) \
+    DECL(thermopro_tx2) \
+    DECL(acurite_590tx) \
+    DECL(secplus_v2) \
+    DECL(tfa_30_3221) \
+    DECL(lacrosse_breezepro) \
+    DECL(somfy_rts) \
+    DECL(schrader_SMD3MA4) \
+    DECL(nice_flor_s) \
+    DECL(lacrosse_wr1) \
+    DECL(lacrosse_th3) \
+    DECL(bresser_6in1) \
+    DECL(bresser_7in1) \
+    DECL(ecodhome) \
+    DECL(lacrosse_r1) \
+    DECL(blueline) \
+    DECL(burnhardbbq) \
+    DECL(secplus_v1) \
+    DECL(cavius) \
+    DECL(tpms_jansite_solar) \
+    DECL(abmt) \
+    DECL(tfa_marbella) \
+    DECL(auriol_ahfl) \
+    DECL(auriol_aft77b2) \
+    DECL(honeywell_cm921) \
+    DECL(tpms_hyundai_vdo) \
+    DECL(rojaflex) \
+    DECL(marlec_solar) \
+    DECL(somfy_iohc) \
+    DECL(fineoffset_wh31l) \
+    DECL(markisol) \
+    DECL(govee) \
+    DECL(cmr113) \
+    DECL(inkbird_ith20r) \
+    DECL(rainpoint) \
+    DECL(atech_ws308) \
+    DECL(acurite_01185m) \
+    DECL(enocean_erp1) \
+    DECL(megacode) \
+    DECL(auriol_4ld5661) \
+    DECL(tpms_truck) \
+    DECL(funkbus_remote) \
+    DECL(tpms_porsche) \
+    DECL(jasco) \
+    DECL(telldus_ft0385r) \
+    DECL(lacrosse_tx34) \
+    DECL(proflame2) \
+    DECL(tpms_ave) \
+    DECL(simplisafe_gen3) \
+    DECL(yale_hsa) \
+    DECL(regency_fan) \
+    DECL(tpms_renault_0435r) \
+    DECL(fineoffset_ws80) \
+    DECL(emos_e6016) \
+    DECL(altronics_7064) \
+    DECL(ant_antplus) \
 
-struct bitbuffer;
-struct data;
-
-typedef struct r_device {
-    unsigned protocol_num; // fixed sequence number, assigned in main()
-
-    /* information provided by each decoder */
-    char *name;
-    unsigned modulation;
-    float short_limit;
-    float long_limit;
-    float reset_limit;
-    float gap_limit;
-    float sync_width;
-    float tolerance;
-    int (*decode_fn)(struct r_device *decoder, struct bitbuffer *bitbuffer);
-    unsigned disabled;
-    char **fields; // List of fields this decoder produces; required for CSV output. NULL-terminated.
-
-    /* public for each decoder */
-    int verbose;
-    void (*output_fn)(struct r_device *decoder, struct data *data);
-
-    /* private for flex decoder and output callback */
-    void *decode_ctx;
-    void *output_ctx;
-
-    /* private pulse limits (converted to count of samples) */
-    float f_short_limit; // precision reciprocal for PCM
-    float f_long_limit;  // precision reciprocal for PCM
-    int s_short_limit;
-    int s_long_limit;
-    int s_reset_limit;
-    int s_gap_limit;
-    int s_sync_width;
-    int s_tolerance;
-} r_device;
+    /* Add new decoders here. */
 
 #define DECL(name) extern r_device name;
 DEVICES
